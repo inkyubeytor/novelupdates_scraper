@@ -31,10 +31,17 @@ class Novel:
         """
         return self.chapters[key]
 
+    def _scrape_chapters(self) -> None:
+        """
+        Downloads the chapter data for the novel.
+        :return: None.
+        """
+        raise NotImplementedError
+
     def _build_novel(self, path: Path) -> None:
         """
         Builds an ebook for the given novel and returns a path to the novel.
         :param path: The directory in which to create the ebook.
-        :return: A path to the built ebook.
+        :return: None.
         """
         raise NotImplementedError
