@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from page import Page
 
@@ -16,3 +16,12 @@ class Chapter:
         """
         self.translations = {translator: Page(link)
                              for translator, link in translations.items()}
+
+    def scrape(self, translator: Optional[str], no_cache: bool):
+        """
+        Downloads the chapter data for the novel.
+        :param translator: The translator to prefer, or None.
+        :param no_cache: Whether to force rescraping of cached chapters.
+        :return: None.
+        """
+        raise NotImplementedError

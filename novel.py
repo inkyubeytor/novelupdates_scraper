@@ -1,6 +1,4 @@
-from typing import List
-
-from chapter import Chapter
+from typing import Optional
 
 
 class Novel:
@@ -10,32 +8,53 @@ class Novel:
 
     def __init__(self, link: str) -> None:
         """
-        Initializes a new Novel.
-        :param link: Link to the novelupdates source page for the Novel.
+        Initializes a new novel.
+        :param link: Link to the novelupdates source page for the novel.
         :return None.
         """
-        # TODO: put metadata here
-        self.chapters: List[Chapter] = []
+        self.link = link
+        self._scrape_metadata()
+        self._init_chapters()
+
+    def _scrape_metadata(self) -> None:
+        """
+        Scrapes the metadata from the novel homepage.
+        :return: None.
+        """
         raise NotImplementedError
 
-    def __getitem__(self, key: int) -> Chapter:
+    def _init_chapters(self) -> None:
         """
-        Returns the chapter specified by the index.
-        :param key: The index of the chapter to return.
-        :return: The indicated chapter.
+        Initializes the chapter list.
+        :return: None.
         """
-        return self.chapters[key]
+        raise NotImplementedError
 
-    def _scrape_chapters(self) -> None:
+    def scrape(self, path: str, translator: Optional[str] = None,
+               no_cache: bool = False) -> None:
+        """
+        Scrapes a novel to a given output directory.
+        :param path: The output directory.
+        :param translator: The translator to prefer, or None.
+        :param no_cache: Whether to force rescraping of cached chapters.
+        :return: None.
+        """
+        self._scrape_chapters(translator, no_cache)
+        self._build_novel(path)
+
+    def _scrape_chapters(self, translator: Optional[str], no_cache: bool) -> \
+            None:
         """
         Downloads the chapter data for the novel.
+        :param translator: The translator to prefer, or None.
+        :param no_cache: Whether to force rescraping of cached chapters.
         :return: None.
         """
         raise NotImplementedError
 
     def _build_novel(self, path: str) -> None:
         """
-        Builds an ebook for the given novel and returns a path to the novel.
+        Builds an ebook for the given novel.
         :param path: The directory in which to create the ebook.
         :return: None.
         """
