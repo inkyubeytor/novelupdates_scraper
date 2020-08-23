@@ -1,5 +1,7 @@
 from typing import Optional
 
+import pypub
+
 
 class Page:
     """
@@ -10,10 +12,10 @@ class Page:
         Initializes a new page.
         :param link: A link to the page.
         """
-        self.link = link
-        self.contents = None
+        self.link: str = link
+        self.contents: Optional[pypub.Chapter] = None
 
-    def get(self, no_cache: bool) -> str:
+    def get(self, no_cache: bool) -> pypub.Chapter:
         """
         Returns page data, scraping it if it is not available.
         :param no_cache: Whether to force rescraping of cached chapters.
@@ -29,4 +31,4 @@ class Page:
         Downloads the page data and scrapes text.
         :return: None.
         """
-        raise NotImplementedError
+        self.contents = pypub.create_chapter_from_url(self.link)

@@ -1,4 +1,8 @@
-from typing import Optional
+from typing import List, Optional
+
+from chapter import Chapter
+
+import pypub
 
 
 class Novel:
@@ -12,7 +16,8 @@ class Novel:
         :param link: Link to the novelupdates source page for the novel.
         :return None.
         """
-        self.link = link
+        self.link: str = link
+
         self._scrape_metadata()
         self._init_chapters()
 
@@ -21,6 +26,7 @@ class Novel:
         Scrapes the metadata from the novel homepage.
         :return: None.
         """
+        self.title: str = ""
         raise NotImplementedError
 
     def _init_chapters(self) -> None:
@@ -28,6 +34,7 @@ class Novel:
         Initializes the chapter list.
         :return: None.
         """
+        self.chapters: List[Chapter] = []
         raise NotImplementedError
 
     def scrape(self, path: str, translator: Optional[str] = None,
@@ -39,23 +46,9 @@ class Novel:
         :param no_cache: Whether to force rescraping of cached chapters.
         :return: None.
         """
-        self._scrape_chapters(translator, no_cache)
-        self._build_novel(path)
-
-    def _scrape_chapters(self, translator: Optional[str], no_cache: bool) -> \
-            None:
-        """
-        Downloads the chapter data for the novel.
-        :param translator: The translator to prefer, or None.
-        :param no_cache: Whether to force rescraping of cached chapters.
-        :return: None.
-        """
-        raise NotImplementedError
-
-    def _build_novel(self, path: str) -> None:
-        """
-        Builds an ebook for the given novel.
-        :param path: The directory in which to create the ebook.
-        :return: None.
-        """
-        raise NotImplementedError
+        # TODO: pass in metadata here
+        epub = pypub.Epub(self.title)
+        chapter_data = [c.scrape(translator, no_cache) for c in self.chapters]
+        for c in chapter_data:
+            epub.add_chapter(c)
+        epub.create_epub(path)
