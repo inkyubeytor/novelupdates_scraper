@@ -4,6 +4,8 @@ from chapter import Chapter
 
 import pypub
 
+import requests
+
 
 class Novel:
     """
@@ -18,8 +20,18 @@ class Novel:
         """
         self.link: str = link
 
+        self._get_source()
         self._scrape_metadata()
         self._init_chapters()
+
+    def _get_source(self) -> None:
+        """
+        Requests novelupdates page and stores within object.
+        :return: None.
+        """
+        response = requests.get(self.link)
+        response.raise_for_status()
+        self.source = response.text
 
     def _scrape_metadata(self) -> None:
         """
@@ -37,7 +49,7 @@ class Novel:
         self.chapters: List[Chapter] = []
         raise NotImplementedError
 
-    def scrape(self, path: str, translator: Optional[str] = None,
+    def collect(self, path: str, translator: Optional[str] = None,
                no_cache: bool = False) -> None:
         """
         Scrapes a novel to a given output directory.
