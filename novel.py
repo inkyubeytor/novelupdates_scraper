@@ -6,6 +6,8 @@ import pypub
 
 import requests
 
+from bs4 import BeautifulSoup
+
 
 class Novel:
     """
@@ -31,7 +33,7 @@ class Novel:
         """
         response = requests.get(self.link)
         response.raise_for_status()
-        self.source = response.text
+        self.source_soup = BeautifulSoup(response.text)
 
     def _scrape_metadata(self) -> None:
         """
