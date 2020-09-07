@@ -65,11 +65,21 @@ class Novel:
         # Year
         self.year: int = int(self.soup.find("div", {"id": "edityear"}).string)
 
-        # Original Publisher
-        self.orig_publishers : List[str] = self._list_sidebar("showopublisher")
+        # Original Publishers
+        self.orig_publishers: List[str] = self._list_sidebar("showopublisher")
 
-        # TODO: Type, Status in COO, Licensed, Completely Translated,
-        #  English Publisher, Associated Names, Related Series
+        # English Publishers
+        self.eng_publishers: List[str] = self._list_sidebar("showepublisher")
+
+        # Completely Translated
+        self.is_translated: bool = \
+            self.soup.find("div", {"id": "showtranslated"}).string != "No"
+
+        # Status in COO
+        self.status: List[str] = list(filter(
+            len, self.soup.find("div", {"id": "editstatus"}).text.split('\n')))
+
+        # TODO: Type, Licensed, Associated Names, Related Series
 
         raise NotImplementedError
 
@@ -87,7 +97,7 @@ class Novel:
         raise NotImplementedError
 
     def collect(self, path: str, translator: Optional[str] = None,
-               no_cache: bool = False) -> None:
+                no_cache: bool = False) -> None:
         """
         Scrapes a novel to a given output directory.
         :param path: The output directory.
