@@ -19,60 +19,66 @@ class Novel:
         :return None.
         """
         self.link: str = link
-        response = cloudscraper.create_scraper().get(self.link)
-        # TODO: Error handling on failed request
-        soup = BeautifulSoup(response.text, "lxml")
-        self._scrape_metadata(soup)
-        self._init_chapters(soup)
 
-    def _scrape_metadata(self, soup: BeautifulSoup) -> None:
+        self._get_source()
+        self._scrape_metadata()
+        self._init_chapters()
+
+    def _get_source(self) -> None:
+        """
+        Requests novelupdates page and stores within object.
+        :return: None.
+        """
+        response = cloudscraper.create_scraper().get(self.link)
+        self.soup = BeautifulSoup(response.text, "lxml")
+
+    def _scrape_metadata(self) -> None:
         """
         Scrapes the metadata from the novel homepage.
         :return: None.
         """
         # Title
-        self.title: str = soup.find("div", {"class": "seriestitlenu"}).string
+        self.title: str = \
+            self.soup.find("div", {"class": "seriestitlenu"}).string
 
         # Description
         self.description: str = "".join(
             p.string for p in
-            soup.find("div", {"id": "editdescription"}).children
+            self.soup.find("div", {"id": "editdescription"}).children
         )
 
         # Genre
-        self.genres: List[str] = self._list_sidebar("seriesgenre", soup)
+        self.genres: List[str] = self._list_sidebar("seriesgenre")
 
         # Tags
-        self.tags: List[str] = self._list_sidebar("showtags", soup)
+        self.tags: List[str] = self._list_sidebar("showtags")
 
         # Languages
-        self.languages: List[str] = self._list_sidebar("showlang", soup)
+        self.languages: List[str] = self._list_sidebar("showlang")
 
         # Authors
-        self.authors: List[str] = self._list_sidebar("showauthors", soup)
+        self.authors: List[str] = self._list_sidebar("showauthors")
 
         # Artists
-        self.artists: List[str] = self._list_sidebar("showartists", soup)
+        self.artists: List[str] = self._list_sidebar("showartists")
 
         # Year
-        self.year: int = int(soup.find("div", {"id": "edityear"}).string)
+        self.year: int = int(self.soup.find("div", {"id": "edityear"}).string)
 
         # Original Publisher
-        self.orig_publishers : List[str] = \
-            self._list_sidebar("showopublisher", soup)
+        self.orig_publishers : List[str] = self._list_sidebar("showopublisher")
 
         # TODO: Type, Status in COO, Licensed, Completely Translated,
         #  English Publisher, Associated Names, Related Series
 
-        print(self.orig_publishers)
         raise NotImplementedError
 
-    @staticmethod
-    def _list_sidebar(tag_id: str, soup: BeautifulSoup) -> List[str]:
-        return [ele.string for ele in soup.find("div", {"id": tag_id}).children
+    def _list_sidebar(self, tag_id: str) -> List[str]:
+        return [ele.string for ele in
+                self.soup.find("div", {"id": tag_id}).children
                 if ele not in {None, "\n", " "} and ele.string is not None]
 
-    def _init_chapters(self, soup: BeautifulSoup) -> None:
+    def _init_chapters(self) -> None:
         """
         Initializes the chapter list.
         :return: None.
@@ -80,7 +86,7 @@ class Novel:
         self.chapters: List[Chapter] = []
         raise NotImplementedError
 
-    def scrape(self, path: str, translator: Optional[str] = None,
+    def collect(self, path: str, translator: Optional[str] = None,
                no_cache: bool = False) -> None:
         """
         Scrapes a novel to a given output directory.
