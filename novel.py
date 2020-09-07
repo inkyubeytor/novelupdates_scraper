@@ -1,8 +1,10 @@
 from typing import List, Optional
 
-from chapter import Chapter
-
 import pypub
+import cloudscraper
+from bs4 import BeautifulSoup
+
+from chapter import Chapter
 
 
 class Novel:
@@ -17,19 +19,60 @@ class Novel:
         :return None.
         """
         self.link: str = link
+        response = cloudscraper.create_scraper().get(self.link)
+        # TODO: Error handling on failed request
+        soup = BeautifulSoup(response.text, "lxml")
+        self._scrape_metadata(soup)
+        self._init_chapters(soup)
 
-        self._scrape_metadata()
-        self._init_chapters()
-
-    def _scrape_metadata(self) -> None:
+    def _scrape_metadata(self, soup: BeautifulSoup) -> None:
         """
         Scrapes the metadata from the novel homepage.
         :return: None.
         """
-        self.title: str = ""
+        # Title
+        self.title: str = soup.find("div", {"class": "seriestitlenu"}).string
+
+        # Description
+        self.description: str = "".join(
+            p.string for p in
+            soup.find("div", {"id": "editdescription"}).children
+        )
+
+        # Genre
+        self.genres: List[str] = self._list_sidebar("seriesgenre", soup)
+
+        # Tags
+        self.tags: List[str] = self._list_sidebar("showtags", soup)
+
+        # Languages
+        self.languages: List[str] = self._list_sidebar("showlang", soup)
+
+        # Authors
+        self.authors: List[str] = self._list_sidebar("showauthors", soup)
+
+        # Artists
+        self.artists: List[str] = self._list_sidebar("showartists", soup)
+
+        # Year
+        self.year: int = int(soup.find("div", {"id": "edityear"}).string)
+
+        # Original Publisher
+        self.orig_publishers : List[str] = \
+            self._list_sidebar("showopublisher", soup)
+
+        # TODO: Type, Status in COO, Licensed, Completely Translated,
+        #  English Publisher, Associated Names, Related Series
+
+        print(self.orig_publishers)
         raise NotImplementedError
 
-    def _init_chapters(self) -> None:
+    @staticmethod
+    def _list_sidebar(tag_id: str, soup: BeautifulSoup) -> List[str]:
+        return [ele.string for ele in soup.find("div", {"id": tag_id}).children
+                if ele not in {None, "\n", " "} and ele.string is not None]
+
+    def _init_chapters(self, soup: BeautifulSoup) -> None:
         """
         Initializes the chapter list.
         :return: None.

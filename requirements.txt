@@ -1,9 +1,14 @@
+beautifulsoup4==4.9.1
 certifi==2020.6.20
 chardet==3.0.4
+cloudscraper==1.2.46
 idna==2.10
 Jinja2==2.11.2
 lxml==4.5.2
 MarkupSafe==1.1.1
+pyparsing==2.4.7
 -e git+https://github.com/imgurbot12/pypub.git@67519a93d0bbf792b012459c7930885d62c9f214#egg=pypub
 requests==2.24.0
+requests-toolbelt==0.9.1
+soupsieve==2.0.1
 urllib3==1.25.10
