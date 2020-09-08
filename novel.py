@@ -2,7 +2,7 @@ from typing import List, Optional
 
 import pypub
 import cloudscraper
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 from chapter import Chapter
 
@@ -39,7 +39,7 @@ class Novel:
         """
         # Title
         self.title: str = \
-            self.soup.find("div", {"class": "seriestitlenu"}).string
+            self.soup.find("div", {"class": "seriestitlenu"}).text
 
         # Description
         self.description: str = "".join(
@@ -63,7 +63,7 @@ class Novel:
         self.artists: List[str] = self._list_sidebar("showartists")
 
         # Year
-        self.year: int = int(self.soup.find("div", {"id": "edityear"}).string)
+        self.year: int = int(self.soup.find("div", {"id": "edityear"}).text)
 
         # Original Publishers
         self.orig_publishers: List[str] = self._list_sidebar("showopublisher")
@@ -72,16 +72,35 @@ class Novel:
         self.eng_publishers: List[str] = self._list_sidebar("showepublisher")
 
         # Completely Translated
-        self.is_translated: bool = \
-            self.soup.find("div", {"id": "showtranslated"}).string != "No"
+        self.is_translated: str = \
+            self.soup.find("div", {"id": "showtranslated"}).text.strip()
 
         # Status in COO
-        self.status: List[str] = list(filter(
-            len, self.soup.find("div", {"id": "editstatus"}).text.split('\n')))
+        self.status: List[str] = list(
+            self.soup.find("div", {"id": "editstatus"}).stripped_strings)
 
-        # TODO: Type, Licensed, Associated Names, Related Series
+        # Licensed
+        self.licensed: str = \
+            self.soup.find("div", {"id": "showlicensed"}).text.strip()
 
-        raise NotImplementedError
+        # Associated Names
+        self.names: List[str] = list(
+            self.soup.find("div", {"id": "editassociated"}).stripped_strings)
+
+        # Type
+        self.novel_type: str = \
+            self.soup.find("div", {"id": "showtype"}).text.strip()
+
+        # Related Series
+        ele = self.soup.find("div", {"class": "two-thirds"}).div.div
+        children = [str(e) if type(e) == NavigableString else e.text
+                    for e in ele.children]
+        children = [e.strip('\n') for e in children]
+        children = list(filter(len, children))
+        children = children[children.index("Related Series") + 1:]
+        children = children[:children.index("Recommendations")]
+        self.related: List[str] = [children[2 * i] + children[2 * i + 1]
+                                   for i in range(len(children) // 2)]
 
     def _list_sidebar(self, tag_id: str) -> List[str]:
         return [ele.string for ele in
