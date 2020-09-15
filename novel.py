@@ -1,7 +1,9 @@
-from typing import List, Optional, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict
 from datetime import datetime, date
 from multiprocessing.pool import ThreadPool
 from collections import defaultdict
+from functools import partial
+import builtins
 
 import pypub
 import cloudscraper
@@ -54,7 +56,7 @@ class Novel:
             "languages": self._list_sidebar("showlang"),
             "authors": self._list_sidebar("showauthors"),
             "artists": self._list_sidebar("showartists"),
-            "year": int(self.soup.find("div", {"id": "edityear"}).text),
+            "year": self.soup.find("div", {"id": "edityear"}).text,
             "original_publishers": self._list_sidebar("showopublisher"),
             "english_publishers": self._list_sidebar("showepublisher"),
             "is_translated": self.soup.find("div", {
@@ -91,15 +93,19 @@ class Novel:
         Initializes the chapter list.
         :return: None.
         """
-        max_page = max(int(a.text) for a in self.soup.find(
-            "div", {"class": "digg_pagination"}).contents if a.text.isdigit())
+        try:
+            max_page = max(int(a.text) for a in self.soup.find(
+                "div", {"class": "digg_pagination"}).contents
+                if a.text.isdigit())
+        except AttributeError:
+            max_page = 1
 
         def thread_fn(i: int) -> BeautifulSoup:
             soup = self._get_source(f"{self.link}?pg={i}")
             return soup.find("table", {"id": "myTable"}).tbody
 
         with ThreadPool(THREAD_COUNT) as p:
-            tables = p.map(thread_fn, range(1, max_page))
+            tables = p.map(thread_fn, range(1, max_page + 1))
 
         scraped_table: List[Tuple[date, str, str, str]] = []
         for table in tables:
@@ -108,7 +114,7 @@ class Novel:
                 d = datetime.strptime(data[0].text, "%m/%d/%y").date()
                 tr = self._parse_chapter_name(data[1].a.string)
                 ch = data[2].a.string
-                link = data[2].a["href"].lstrip('/')
+                link = f"http:{data[2].a['href']}"
                 scraped_table.append((d, tr, ch, link))
 
         self.chapter_list: List[Page] = \
@@ -124,16 +130,13 @@ class Novel:
         """
         return name
 
-    def collect(self, path: str, translator: Optional[str] = None,
-                no_cache: bool = False) -> None:
+    def collect(self, path: str, no_cache: bool = False) -> None:
         """
         Scrapes a novel to a given output directory.
         :param path: The output directory.
-        :param translator: The translator to prefer, or None.
         :param no_cache: Whether to force rescraping of cached chapters.
         :return: None.
         """
-        # TODO: pass in metadata here
         epub = pypub.Epub(
             self.metadata["title"],
             creator=", ".join(self.metadata["authors"] +
@@ -142,8 +145,38 @@ class Novel:
             rights=self.metadata["licensed"],
             publisher=", ".join(self.metadata["original_publishers"] +
                                 self.metadata["english_publishers"]))
-        # TODO: greedy construction of chapter data
+        translator_dict = defaultdict(lambda: [])
+        for i, p in enumerate(self.chapter_list):
+            translator_dict[p.translator].append((i, p))
         chapter_data = []
-        for c in chapter_data:
+        chapters = set()
+        for t in sorted(list(translator_dict.values()), key=len, reverse=True):
+            for i, p in t:
+                if p.name not in chapters:
+                    chapter_data.append((i, p))
+                    chapters.add(p.name)
+        chapter_data.sort(key=lambda x: x[0])
+
+        with ThreadPool(THREAD_COUNT) as p:
+            pages = p.map(lambda x: x[1].get(no_cache=no_cache), chapter_data)
+
+        for c in pages:
             epub.add_chapter(c)
+
+        # TODO: Submit PR to pypub fork and replace this atrocious workaround
+        # Replace open function temporarily to affect library behavior
+        old_open = open
+
+        def new_open(*args, **kwargs):
+            utf8_open = partial(old_open, encoding="utf-8")
+            try:
+                return utf8_open(*args, **kwargs)
+            except ValueError:
+                return old_open(*args, **kwargs)
+
+        builtins.open = new_open
+
         epub.create_epub(path)
+
+        # Restore old open function
+        builtins.open = old_open

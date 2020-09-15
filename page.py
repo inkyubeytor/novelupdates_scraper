@@ -1,8 +1,10 @@
 from typing import Optional
 from datetime import date
+import re
 
 import pypub
 import cloudscraper
+from bs4 import BeautifulSoup
 
 
 class Page:
@@ -40,5 +42,14 @@ class Page:
         Downloads the page data and scrapes text.
         :return: None.
         """
-        self.contents = pypub.create_chapter_from_string(
-            cloudscraper.create_scraper().get(self.link))
+        soup = BeautifulSoup(
+            cloudscraper.create_scraper().get(self.link).text.encode("utf-8"),
+            "lxml")
+
+        for i in soup.find_all("img"):
+            i.decompose()
+        for s in soup.find_all("script"):
+            s.decompose()
+
+        data = str(soup.decode("utf-8", "ignore"))
+        self.contents = pypub.create_chapter_from_string(data, title=self.name)
