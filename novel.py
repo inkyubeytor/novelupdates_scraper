@@ -1,11 +1,15 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from datetime import datetime, date
+from collections import defaultdict
+from multiprocessing.pool import ThreadPool
 
 import pypub
 import cloudscraper
-from bs4 import BeautifulSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString, Tag
 
-from chapter import Chapter
+from page import Page
 
+THREAD_COUNT = 4
 
 class Novel:
     """
@@ -20,17 +24,18 @@ class Novel:
         """
         self.link: str = link
 
-        self._get_source()
+        self.soup = self._get_source(self.link)
         self._scrape_metadata()
         self._init_chapters()
 
-    def _get_source(self) -> None:
+    @staticmethod
+    def _get_source(link) -> BeautifulSoup:
         """
         Requests novelupdates page and stores within object.
         :return: None.
         """
-        response = cloudscraper.create_scraper().get(self.link)
-        self.soup = BeautifulSoup(response.text, "lxml")
+        response = cloudscraper.create_scraper().get(link)
+        return BeautifulSoup(response.text, "lxml")
 
     def _scrape_metadata(self) -> None:
         """
@@ -112,8 +117,38 @@ class Novel:
         Initializes the chapter list.
         :return: None.
         """
-        self.chapters: List[Chapter] = []
-        raise NotImplementedError
+        max_page = max(int(a.text) for a in self.soup.find(
+            "div", {"class": "digg_pagination"}).contents if a.text.isdigit())
+
+        def thread_fn(i: int) -> BeautifulSoup:
+            soup = self._get_source(f"{self.link}?pg={i}")
+            return soup.find("table", {"id": "myTable"}).tbody
+
+        with ThreadPool(THREAD_COUNT) as p:
+            tables = p.map(thread_fn, range(1, max_page))
+
+        scraped_table: List[Tuple[date, str, str, str]] = []
+        for table in tables:
+            for row in table.find_all("tr"):
+                data = [d for d in row.children if type(d) is Tag]
+                d = datetime.strptime(data[0].text, "%m/%d/%y").date()
+                tr = self._parse_chapter_name(data[1].a.string)
+                ch = data[2].a.string
+                link = data[2].a["href"].lstrip('/')
+                scraped_table.append((d, tr, ch, link))
+
+        self.chapter_list: List[Page] = \
+            [Page(d, tr, ch, link) for (d, tr, ch, link) in
+             reversed(scraped_table)]
+
+    @staticmethod
+    def _parse_chapter_name(name: str) -> str:
+        """
+        Parses a chapter name into a dictionary key/ebook chapter name.
+        :param name: The name to parse.
+        :return: The cleaned chapter name.
+        """
+        return name
 
     def collect(self, path: str, translator: Optional[str] = None,
                 no_cache: bool = False) -> None:
@@ -126,7 +161,8 @@ class Novel:
         """
         # TODO: pass in metadata here
         epub = pypub.Epub(self.title)
-        chapter_data = [c.scrape(translator, no_cache) for c in self.chapters]
+        # TODO: greedy construction of chapter data
+        chapter_data = []
         for c in chapter_data:
             epub.add_chapter(c)
         epub.create_epub(path)

@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import date
 
 import pypub
 
@@ -7,15 +8,22 @@ class Page:
     """
     Represents a single translation of a chapter.
     """
-    def __init__(self, link: str) -> None:
+    def __init__(self, pub: date, translator: str, name: str, link: str) \
+            -> None:
         """
         Initializes a new page.
+        :param pub: The date the page was released.
+        :param translator: The name of the page translator.
+        :param name: The name of the chapter.
         :param link: A link to the page.
         """
+        self.date: date = pub
+        self.translator: str = translator
+        self.name: str = name
         self.link: str = link
         self.contents: Optional[pypub.Chapter] = None
 
-    def get(self, no_cache: bool) -> pypub.Chapter:
+    def get(self, no_cache: bool = False) -> pypub.Chapter:
         """
         Returns page data, scraping it if it is not available.
         :param no_cache: Whether to force rescraping of cached chapters.
