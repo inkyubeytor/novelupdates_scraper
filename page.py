@@ -2,6 +2,7 @@ from typing import Optional
 from datetime import date
 
 import pypub
+import cloudscraper
 
 
 class Page:
@@ -39,4 +40,5 @@ class Page:
         Downloads the page data and scrapes text.
         :return: None.
         """
-        self.contents = pypub.create_chapter_from_url(self.link)
+        self.contents = pypub.create_chapter_from_string(
+            cloudscraper.create_scraper().get(self.link))

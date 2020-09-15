@@ -1,7 +1,7 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Any, Dict
 from datetime import datetime, date
-from collections import defaultdict
 from multiprocessing.pool import ThreadPool
+from collections import defaultdict
 
 import pypub
 import cloudscraper
@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from page import Page
 
 THREAD_COUNT = 4
+
 
 class Novel:
     """
@@ -42,61 +43,39 @@ class Novel:
         Scrapes the metadata from the novel homepage.
         :return: None.
         """
-        # Title
-        self.title: str = \
-            self.soup.find("div", {"class": "seriestitlenu"}).text
+        self.metadata: Dict[str, Any] = {
+            "title": self.soup.find("div", {"class": "seriestitlenu"}).text,
+            "description": "".join(
+                p.string for p in
+                self.soup.find("div", {"id": "editdescription"}).children
+            ),
+            "genres": self._list_sidebar("seriesgenre"),
+            "tags": self._list_sidebar("showtags"),
+            "languages": self._list_sidebar("showlang"),
+            "authors": self._list_sidebar("showauthors"),
+            "artists": self._list_sidebar("showartists"),
+            "year": int(self.soup.find("div", {"id": "edityear"}).text),
+            "original_publishers": self._list_sidebar("showopublisher"),
+            "english_publishers": self._list_sidebar("showepublisher"),
+            "is_translated": self.soup.find("div", {
+                "id": "showtranslated"}).text.strip(), "status": list(
+                self.soup.find("div", {"id": "editstatus"}).stripped_strings),
+            "licensed": self.soup.find("div",
+                                       {"id": "showlicensed"}).text.strip(),
+            "names": list(
+                self.soup.find("div",
+                               {"id": "editassociated"}).stripped_strings),
+            "novel_type": self.soup.find("div",
+                                         {"id": "showtype"}).text.strip(),
+            "related": self._get_related()
+        }
 
-        # Description
-        self.description: str = "".join(
-            p.string for p in
-            self.soup.find("div", {"id": "editdescription"}).children
-        )
+    def _list_sidebar(self, tag_id: str) -> List[str]:
+        return [ele.string for ele in
+                self.soup.find("div", {"id": tag_id}).children
+                if ele not in {None, "\n", " "} and ele.string is not None]
 
-        # Genre
-        self.genres: List[str] = self._list_sidebar("seriesgenre")
-
-        # Tags
-        self.tags: List[str] = self._list_sidebar("showtags")
-
-        # Languages
-        self.languages: List[str] = self._list_sidebar("showlang")
-
-        # Authors
-        self.authors: List[str] = self._list_sidebar("showauthors")
-
-        # Artists
-        self.artists: List[str] = self._list_sidebar("showartists")
-
-        # Year
-        self.year: int = int(self.soup.find("div", {"id": "edityear"}).text)
-
-        # Original Publishers
-        self.orig_publishers: List[str] = self._list_sidebar("showopublisher")
-
-        # English Publishers
-        self.eng_publishers: List[str] = self._list_sidebar("showepublisher")
-
-        # Completely Translated
-        self.is_translated: str = \
-            self.soup.find("div", {"id": "showtranslated"}).text.strip()
-
-        # Status in COO
-        self.status: List[str] = list(
-            self.soup.find("div", {"id": "editstatus"}).stripped_strings)
-
-        # Licensed
-        self.licensed: str = \
-            self.soup.find("div", {"id": "showlicensed"}).text.strip()
-
-        # Associated Names
-        self.names: List[str] = list(
-            self.soup.find("div", {"id": "editassociated"}).stripped_strings)
-
-        # Type
-        self.novel_type: str = \
-            self.soup.find("div", {"id": "showtype"}).text.strip()
-
-        # Related Series
+    def _get_related(self) -> List[str]:
         ele = self.soup.find("div", {"class": "two-thirds"}).div.div
         children = [str(e) if type(e) == NavigableString else e.text
                     for e in ele.children]
@@ -104,13 +83,8 @@ class Novel:
         children = list(filter(len, children))
         children = children[children.index("Related Series") + 1:]
         children = children[:children.index("Recommendations")]
-        self.related: List[str] = [children[2 * i] + children[2 * i + 1]
-                                   for i in range(len(children) // 2)]
-
-    def _list_sidebar(self, tag_id: str) -> List[str]:
-        return [ele.string for ele in
-                self.soup.find("div", {"id": tag_id}).children
-                if ele not in {None, "\n", " "} and ele.string is not None]
+        return [children[2 * i] + children[2 * i + 1]
+                for i in range(len(children) // 2)]
 
     def _init_chapters(self) -> None:
         """
@@ -160,7 +134,14 @@ class Novel:
         :return: None.
         """
         # TODO: pass in metadata here
-        epub = pypub.Epub(self.title)
+        epub = pypub.Epub(
+            self.metadata["title"],
+            creator=", ".join(self.metadata["authors"] +
+                              self.metadata["artists"]),
+            language=", ".join(self.metadata["languages"]),
+            rights=self.metadata["licensed"],
+            publisher=", ".join(self.metadata["original_publishers"] +
+                                self.metadata["english_publishers"]))
         # TODO: greedy construction of chapter data
         chapter_data = []
         for c in chapter_data:
