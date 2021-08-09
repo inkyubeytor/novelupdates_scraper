@@ -111,7 +111,7 @@ class Novel:
         for table in tables:
             for row in table.find_all("tr"):
                 data = [d for d in row.children if type(d) is Tag]
-                d = datetime.strptime(data[0].text, "%m/%d/%y").date()
+                d = datetime.strptime(data[0].text.strip(), "%m/%d/%y").date()
                 tr = self._parse_chapter_name(data[1].a.string)
                 ch = data[2].a.string
                 link = f"http:{data[2].a['href']}"
@@ -130,12 +130,12 @@ class Novel:
         """
         return name
 
-    def collect(self, path: str, no_cache: bool = False) -> None:
+    def collect(self, path: str, no_cache: bool = False) -> str:
         """
         Scrapes a novel to a given output directory.
         :param path: The output directory.
         :param no_cache: Whether to force rescraping of cached chapters.
-        :return: None.
+        :return: The name of the EPUB file.
         """
         epub = pypub.Epub(
             self.metadata["title"],
@@ -180,3 +180,5 @@ class Novel:
 
         # Restore old open function
         builtins.open = old_open
+
+        return f"{epub.title}.epub"
