@@ -3,8 +3,8 @@ from datetime import date
 import re
 
 import pypub
-import cloudscraper
-from bs4 import BeautifulSoup
+
+from scraper import Scraper
 
 
 class Page:
@@ -42,14 +42,20 @@ class Page:
         Downloads the page data and scrapes text.
         :return: None.
         """
-        soup = BeautifulSoup(
-            cloudscraper.create_scraper().get(self.link).text.encode("utf-8"),
-            "lxml")
+        soup = Scraper().scrape(self.link)
 
         for i in soup.find_all("img"):
             i.decompose()
         for s in soup.find_all("script"):
             s.decompose()
+
+        # TODO: use some subset of these tags for cleaning up end matter
+        # for exclude in ["comment", "button", "tag",
+        #                 "related", "share", "footer"]:
+        #     for section in soup.find_all(id=re.compile(f".*{exclude}.*")):
+        #         section.decompose()
+        #     for section in soup.find_all(class_=re.compile(f".*{exclude}.*")):
+        #         section.decompose()
 
         data = str(soup.decode("utf-8", "ignore"))
         self.contents = pypub.create_chapter_from_string(data, title=self.name)

@@ -8,6 +8,7 @@ from novel import Novel
 app = Flask(__name__)
 
 DATA = "data"
+DEBUG = True
 
 
 @app.route("/ping")
@@ -22,15 +23,21 @@ def scrape():
     except KeyError:
         return "Missing url in request", 400
 
-    try:
+    if DEBUG:
         d = f"{DATA}/{time()}"
         os.mkdir(d)
         fname = Novel(url).collect(d)
         return send_file(os.path.join(d, fname))
-    except Exception as e:
-        print(e)
-        return "Failed to scrape book", 400
+    else:
+        try:
+            d = f"{DATA}/{time()}"
+            os.mkdir(d)
+            fname = Novel(url).collect(d)
+            return send_file(os.path.join(d, fname))
+        except Exception as e:
+            print(e)
+            return "Failed to scrape book", 400
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+    app.run(host="0.0.0.0", debug=True)

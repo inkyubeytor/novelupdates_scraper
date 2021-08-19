@@ -6,10 +6,10 @@ from functools import partial
 import builtins
 
 import pypub
-import cloudscraper
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 from page import Page
+from scraper import Scraper
 
 THREAD_COUNT = 4
 
@@ -27,18 +27,9 @@ class Novel:
         """
         self.link: str = link
 
-        self.soup = self._get_source(self.link)
+        self.soup = Scraper().scrape(self.link)
         self._scrape_metadata()
         self._init_chapters()
-
-    @staticmethod
-    def _get_source(link) -> BeautifulSoup:
-        """
-        Requests novelupdates page and stores within object.
-        :return: None.
-        """
-        response = cloudscraper.create_scraper().get(link)
-        return BeautifulSoup(response.text, "lxml")
 
     def _scrape_metadata(self) -> None:
         """
@@ -101,7 +92,7 @@ class Novel:
             max_page = 1
 
         def thread_fn(i: int) -> BeautifulSoup:
-            soup = self._get_source(f"{self.link}?pg={i}")
+            soup = Scraper().scrape(f"{self.link}?pg={i}")
             return soup.find("table", {"id": "myTable"}).tbody
 
         with ThreadPool(THREAD_COUNT) as p:
